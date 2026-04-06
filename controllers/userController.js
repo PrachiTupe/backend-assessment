@@ -150,7 +150,51 @@ export const deleteViewer = async (req, res) => {
 };
 
 
+export const getAssignedUsersForViewer = async (req, res) => {
+  try {
+    const { id, role } = req.user;
 
+    let accessList;
+
+    if (role === "VIEWER") {
+      // Viewer → get users who gave access
+      accessList = await ViewerAccess.find({ viewerId: id })
+        .populate("userId", "name email");
+      
+      const users = accessList.map((entry) => entry.userId);
+
+      return res.status(200).json({
+        message: "Assigned users fetched successfully (Viewer)",
+        count: users.length,
+        users
+      });
+    }
+
+    if (role === "USER") {
+      // USER → get viewers they added (optional but useful)
+      accessList = await ViewerAccess.find({ userId: id })
+        .populate("viewerId", "name email");
+
+      const viewers = accessList.map((entry) => entry.viewerId);
+
+      return res.status(200).json({
+        message: "Viewers fetched successfully (User)",
+        count: viewers.length,
+        viewers
+      });
+    }
+
+    return res.status(403).json({
+      message: "Access denied"
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      message: "Error fetching data",
+      error: error.message
+    });
+  }
+};
 
 
 
