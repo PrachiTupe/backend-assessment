@@ -80,3 +80,61 @@ export const getTransactions = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+
+export const getTransactionsPaginated = async (req, res) => {
+  try {
+    let filter = {};
+
+
+    if (req.user.role === "USER") {
+      filter.userId = req.user.id;
+    }
+
+    else if (req.user.role === "MANAGER") {
+      const users = await User.find({ managerId: req.user.id });
+      const ids = users.map(u => u._id);
+      filter.userId = { $in: ids };
+    }
+
+    else if (req.user.role === "VIEWER") {
+      const access = await ViewerAccess.find({ viewerId: req.user.id });
+      const ids = access.map(a => a.userId);
+      filter.userId = { $in: ids };
+    }
+
+    else if (req.user.role === "ADMIN") {
+      filter = {};
+    }
+
+    // Pagination params
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+
+    const skip = (page - 1) * limit;
+
+    // Total count
+    const totalRecords = await Transaction.countDocuments(filter);
+
+    // Fetch paginated data
+    const data = await Transaction.find(filter)
+      .populate("userId", "name email")
+      .sort({ createdAt: -1 }) // latest first
+      .skip(skip)
+      .limit(limit);
+
+    // Send structured response
+    res.json({
+      data,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(totalRecords / limit),
+        totalRecords,
+        limit
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

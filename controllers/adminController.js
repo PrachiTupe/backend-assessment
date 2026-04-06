@@ -143,3 +143,30 @@ export const getManagersWithUsers = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+
+export const searchUsers = async (req, res) => {
+  try {
+    const { query } = req.query;
+
+    // ❗ If no query provided
+    if (!query) {
+      return res.status(400).json({
+        message: "Search query is required"
+      });
+    }
+
+    // 🔥 Regex for partial + case-insensitive search
+    const users = await User.find({
+      $or: [
+        { name: { $regex: query, $options: "i" } },
+        { email: { $regex: query, $options: "i" } }
+      ]
+    }).select("-password");
+
+    res.json(users);
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
