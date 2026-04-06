@@ -18,7 +18,7 @@ app.use(express.json());
 // ✅ Allow multiple origins
 const allowedOrigins = [
   "http://localhost:3000", // Local frontend
-  "https://finance-dashboard-nu-beryl.vercel.app", // Deployed frontend
+  "https://finance-dashboard-azure-rho.vercel.app", // Deployed frontend
 ];
 
 app.use(cors({
