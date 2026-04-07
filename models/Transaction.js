@@ -17,7 +17,17 @@ const transactionSchema = new mongoose.Schema({
     required: true
   },
   note: String,
-  date: Date
+  date: Date,
+   
+  // Soft delete fields
+  deleted: {
+    type: Boolean,
+    default: false
+  },
+  deletedAt: {
+    type: Date,
+    default: null
+  }
 }, { timestamps: true });
 
 export default mongoose.model("Transaction", transactionSchema);

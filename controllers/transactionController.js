@@ -17,24 +17,25 @@ export const updateTransaction = async (req, res) => {
     const { id } = req.params; // transaction ID from URL
     const userId = req.user.id; // logged-in user
 
-    // 1. Find the transaction
     const txn = await Transaction.findById(id);
+    if (!txn) return res.status(404).json({ message: "Transaction not found" });
 
-    if (!txn) {
-      return res.status(404).json({ message: "Transaction not found" });
-    }
-
-    // 2. Check ownership
+    // Ownership check
     if (txn.userId.toString() !== userId) {
       return res.status(403).json({ message: "You can only update your own transactions" });
     }
 
-    // 3. Update transaction with new data
-    Object.assign(txn, req.body); // merge new data
+    // Only allow specific fields to be updated
+    const { amount, type, category, note, date } = req.body;
+    if (amount !== undefined) txn.amount = amount;
+    if (type !== undefined) txn.type = type;
+    if (category !== undefined) txn.category = category;
+    if (note !== undefined) txn.note = note;
+    if (date !== undefined) txn.date = date;
+
     await txn.save();
 
     res.json(txn);
-
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
@@ -49,6 +50,7 @@ export const getTransactions = async (req, res) => {
 
     if (req.user.role === "USER") {
       filter.userId = req.user.id;
+      filter.deleted = false;
     }
 
     else if (req.user.role === "MANAGER") {
@@ -136,5 +138,68 @@ export const getTransactionsPaginated = async (req, res) => {
 
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+
+export const deleteTransaction = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const txn = await Transaction.findById(id);
+    if (!txn) return res.status(404).json({ message: "Transaction not found" });
+
+    // Only the owner can delete
+    if (txn.userId.toString() !== userId) {
+      return res.status(403).json({ message: "You can only delete your own transactions" });
+    }
+
+    // Check if already deleted
+    if (txn.deleted) {
+      return res.status(400).json({ message: "Transaction is already deleted" });
+    }
+
+    txn.deleted = true;
+    txn.deletedAt = new Date();
+    await txn.save();
+
+    res.json({ message: "Transaction deleted successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+export const getDeletedTransactions = async (req, res) => {
+  try {
+    //Only fetch deleted transactions
+    let filter = { deleted: true };
+
+    if (req.user.role === "MANAGER") {
+      // Manager: only see deleted transactions of assigned users
+      const users = await User.find({ managerId: req.user.id });
+      const ids = users.map(u => u._id);
+      filter.userId = { $in: ids };
+    } 
+    else if (req.user.role === "ADMIN") {
+      // Admin: can see all deleted transactions
+      filter = { deleted: true };
+    } 
+    else {
+      // Other roles: no access
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    const deletedTxns = await Transaction.find(filter)
+      .populate("userId", "name email") // include user info
+      .sort({ deletedAt: -1 }); // latest deleted first
+
+    res.json({ count: deletedTxns.length, data: deletedTxns });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
   }
 };
