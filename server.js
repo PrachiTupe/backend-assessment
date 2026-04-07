@@ -37,6 +37,10 @@ app.get("/", (req, res) => {
   res.send("API Running...");
 });
 
+app.get("/api/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 connectDB();
 
 // 🔥 Routes
